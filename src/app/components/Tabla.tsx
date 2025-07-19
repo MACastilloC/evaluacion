@@ -1,35 +1,49 @@
 'use client';
 import React from 'react';
-import { Voluntario } from '../types/Voluntario';
+import { VoluntarioConId } from '@/lib/firebase';
 
 interface Props {
-  voluntarios: Voluntario[];
-  editar: (index: number) => void;
-  eliminar: (index: number) => void;
+  voluntarios: VoluntarioConId[];
+  editar: (voluntario: VoluntarioConId) => void;
+  eliminar: (id: string) => void;
+  cargando: boolean;
 }
 
-export default function Tabla({ voluntarios, editar, eliminar }: Props) {
+export default function Tabla({ voluntarios, editar, eliminar, cargando }: Props) {
   return (
     <div style={{ marginTop: 30 }}>
       {voluntarios.length === 0 ? (
-        <p style={{ textAlign: 'center' }}>No hay voluntarios registrados.</p>
+        <p style={{ textAlign: 'center' }}>
+          {cargando ? 'Cargando voluntarios...' : 'No hay voluntarios registrados.'}
+        </p>
       ) : (
-        voluntarios.map((v, i) => (
-          <div key={i} style={{
+        voluntarios.map((voluntario) => (
+          <div key={voluntario.id} style={{
             border: '1px solid #ccc',
             borderRadius: '10px',
             padding: '10px',
             marginBottom: '15px',
             backgroundColor: '#111'
           }}>
-            <h3 style={{ marginBottom: 5 }}>{v.nombre}</h3>
-            <p><strong>Fecha de inscripción:</strong> {v.fecha}</p>
-            <p><strong>Años de experiencia:</strong> {v.experiencia}</p>
-            <p><strong>Rol deseado:</strong> {v.rol}</p>
-            <p><strong>Comentarios:</strong> {v.comentarios || 'Sin comentarios'}</p>
+            <h3 style={{ marginBottom: 5 }}>{voluntario.nombre}</h3>
+            <p><strong>Fecha de inscripción:</strong> {voluntario.fecha}</p>
+            <p><strong>Años de experiencia:</strong> {voluntario.experiencia}</p>
+            <p><strong>Rol deseado:</strong> {voluntario.rol}</p>
+            <p><strong>Comentarios:</strong> {voluntario.comentarios || 'Sin comentarios'}</p>
             <div style={{ marginTop: 10 }}>
-              <button onClick={() => editar(i)} style={{ marginRight: 10 }}>Editar</button>
-              <button onClick={() => eliminar(i)}>Eliminar</button>
+              <button 
+                onClick={() => editar(voluntario)} 
+                style={{ marginRight: 10 }}
+                disabled={cargando}
+              >
+                Editar
+              </button>
+              <button 
+                onClick={() => eliminar(voluntario.id)}
+                disabled={cargando}
+              >
+                Eliminar
+              </button>
             </div>
           </div>
         ))

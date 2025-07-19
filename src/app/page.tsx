@@ -4,6 +4,13 @@ import { Voluntario } from './types/Voluntario';
 import Formulario from './components/Formulario';
 import Tabla from './components/Tabla';
 import { roles } from './data/roles';
+import { 
+  obtenerVoluntarios, 
+  agregarVoluntario, 
+  actualizarVoluntario, 
+  eliminarVoluntario,
+  VoluntarioConId 
+} from '@/lib/firebase';
 
 const voluntarioInicial: Voluntario = {
   nombre: '',
@@ -14,19 +21,28 @@ const voluntarioInicial: Voluntario = {
 };
 
 export default function Page() {
-  const [voluntarios, setVoluntarios] = useState<Voluntario[]>([]);
+  const [voluntarios, setVoluntarios] = useState<VoluntarioConId[]>([]);
   const [formulario, setFormulario] = useState<Voluntario>(voluntarioInicial);
-  const [indiceEditar, setIndiceEditar] = useState<number | null>(null);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [filtroRol, setFiltroRol] = useState('');
+  const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
-    const almacenados = localStorage.getItem('voluntarios');
-    if (almacenados) setVoluntarios(JSON.parse(almacenados));
+    cargarVoluntarios();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('voluntarios', JSON.stringify(voluntarios));
-  }, [voluntarios]);
+  const cargarVoluntarios = async () => {
+    try {
+      setCargando(true);
+      const voluntariosObtenidos = await obtenerVoluntarios();
+      setVoluntarios(voluntariosObtenidos);
+    } catch (error) {
+      console.error('Error al cargar voluntarios:', error);
+      alert('Error al cargar los voluntarios');
+    } finally {
+      setCargando(false);
+    }
+  };
 
   const manejarCambio = (e: React.ChangeEvent<any>) => {
     const { name, value } = e.target;
@@ -43,32 +59,58 @@ export default function Page() {
     return true;
   };
 
-  const manejarRegistro = (e: React.FormEvent) => {
+  const manejarRegistro = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validar()) {
       alert('Complete correctamente todos los campos.');
       return;
     }
-    if (indiceEditar === null) {
-      setVoluntarios(prev => [...prev, formulario]);
-    } else {
-      const nuevos = [...voluntarios];
-      nuevos[indiceEditar] = formulario;
-      setVoluntarios(nuevos);
-      setIndiceEditar(null);
+
+    try {
+      setCargando(true);
+      if (editandoId === null) {
+        await agregarVoluntario(formulario);
+      } else {
+        await actualizarVoluntario(editandoId, formulario);
+        setEditandoId(null);
+      }
+      setFormulario(voluntarioInicial);
+      await cargarVoluntarios();
+    } catch (error) {
+      console.error('Error al guardar voluntario:', error);
+      alert('Error al guardar el voluntario');
+    } finally {
+      setCargando(false);
     }
-    setFormulario(voluntarioInicial);
   };
 
-  const editar = (index: number) => {
-    setFormulario(voluntarios[index]);
-    setIndiceEditar(index);
+  const editar = (voluntario: VoluntarioConId) => {
+    setFormulario({
+      nombre: voluntario.nombre,
+      experiencia: voluntario.experiencia,
+      rol: voluntario.rol,
+      comentarios: voluntario.comentarios,
+      fecha: voluntario.fecha
+    });
+    setEditandoId(voluntario.id);
   };
 
-  const eliminar = (index: number) => {
+  const eliminar = async (id: string) => {
     if (confirm('¿Eliminar este voluntario?')) {
-      setVoluntarios(voluntarios.filter((_, i) => i !== index));
-      if (indiceEditar === index) setFormulario(voluntarioInicial);
+      try {
+        setCargando(true);
+        await eliminarVoluntario(id);
+        await cargarVoluntarios();
+        if (editandoId === id) {
+          setFormulario(voluntarioInicial);
+          setEditandoId(null);
+        }
+      } catch (error) {
+        console.error('Error al eliminar voluntario:', error);
+        alert('Error al eliminar el voluntario');
+      } finally {
+        setCargando(false);
+      }
     }
   };
 
@@ -80,11 +122,14 @@ export default function Page() {
     <div style={{ backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: 20 }}>
       <h2>Registro de Voluntarios</h2>
 
+      {cargando && <p>Cargando...</p>}
+
       <Formulario
         formulario={formulario}
         manejarCambio={manejarCambio}
         manejarRegistro={manejarRegistro}
-        indiceEditar={indiceEditar}
+        editandoId={editandoId}
+        cargando={cargando}
       />
 
       <div style={{ marginTop: 20 }}>
@@ -99,6 +144,7 @@ export default function Page() {
         voluntarios={voluntariosFiltrados}
         editar={editar}
         eliminar={eliminar}
+        cargando={cargando}
       />
     </div>
   );
